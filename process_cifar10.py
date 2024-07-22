@@ -43,6 +43,27 @@ def main():
     train, test = get_train_test(CIFAR_DIR)
     train = convert_image_list_to_nd_array(train)
     test = convert_image_list_to_nd_array(test)
+    df = pl.concat([
+        train.with_columns(pl.lit('train').alias('set')),
+        test.with_columns(pl.lit('test').alias('set'))
+    ]).with_columns(pl.col('set') + '/' + pl.col('labels').cast(str)+'/' +pl.col('filenames').cast(str))
+    for row in df.iter_rows(named=True):
+        img = row['data']
+        cv2.imshow('t', img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+    
+
+    df.head(2)
+    train.head(2)
+
+    train.head()
+    print()
+    df = train.head()
+    df[0]
+    train.filter(pl.col('labels')==2).head(10)['filenames']
+
+
     train.write_csv(CIFAR_TRAIN_PATH)
     train.write_json('try.json')
     # test.write_parquet(CIFAR_TEST_PATH)
