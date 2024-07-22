@@ -3,9 +3,10 @@ from pathlib import Path
 import polars as pl
 import numpy as np
 import cv2
-import tensorflow as tf
 
-CIFAR_DIR = Path('data/cifar-10-batches-py')
+CIFAR_DIR = Path('data/cifar-10/raw')
+CIFAR_TRAIN_PATH = Path('data/cifar-10/processed/train.csv')
+CIFAR_TEST_PATH = Path('data/cifar-10/processed/test.parquet')
 
 def unpickle(file):
     with open(file, 'rb') as fo:
@@ -42,17 +43,21 @@ def main():
     train, test = get_train_test(CIFAR_DIR)
     train = convert_image_list_to_nd_array(train)
     test = convert_image_list_to_nd_array(test)
-
-    fashion_mnist = tf.keras.datasets.fashion_mnist
-    (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
-
-
-
-    cv2.imshow('t', train)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    train.write_csv(CIFAR_TRAIN_PATH)
+    train.write_json('try.json')
+    # test.write_parquet(CIFAR_TEST_PATH)
+    import pandas as pd
+    df = train.to_pandas()
+    df.to_csv('try.csv')
+    df.columns
+    df['data'].head()
     print()
-
+    df_ = pd.read_csv('try.csv')
+    df_['data'].head()
+    import tensorflow as tf
+    
+    import tensorflow_datasets as tfds
+    
 
 if __name__=="__main__":
     main()
