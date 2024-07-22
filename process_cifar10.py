@@ -6,6 +6,7 @@ import cv2
 from tqdm import tqdm
 
 CIFAR_DIR = Path("data/cifar-10/raw/original")
+CIFAR_OUTPUT = Path("data/cifar-10/raw/tfds")
 CIFAR_TRAIN_PATH = Path("data/cifar-10/processed/train.csv")
 CIFAR_TEST_PATH = Path("data/cifar-10/processed/test.parquet")
 
@@ -60,7 +61,7 @@ def main():
             test.with_columns(pl.lit("test").alias("set")),
         ]
     ).with_columns(
-        (str(CIFAR_DIR.parent) + "/" + pl.col("set")
+        (str(CIFAR_OUTPUT) + "/" + pl.col("set")
         + "/"
         + pl.col("labels").cast(str)
         + "/"
