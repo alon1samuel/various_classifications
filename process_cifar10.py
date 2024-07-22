@@ -66,7 +66,12 @@ def main():
         + "/"
         + pl.col("filenames").cast(str)).alias('path')
     )
-    print(df.head(2))
+
+    print('Checking there are no duplicates paths')
+    print(len(df.filter(pl.col('path').is_duplicated())))
+
+    print('Checking all images are png type')
+    print(df.with_columns(pl.col('path').str.tail(3).alias('ending')).group_by('ending').len())
 
     for row in tqdm(df.iter_rows(named=True), total=len(df)):
         img = row["data"]
