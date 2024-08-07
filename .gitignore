@@ -2,3 +2,4 @@
 .venv
 notes.md
 .torch_v
+**.pyc
