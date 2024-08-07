@@ -29,7 +29,7 @@ from pathlib import Path
 cifar_data_path = Path('data/cifar-10/raw/tfds')
 batch_size = 32
 input_shape = (32, 32, 3)
-IMG_SIZE = 256
+IMG_SIZE = input_shape[0]
 
 
 
@@ -56,6 +56,8 @@ test_ds = tf.keras.utils.image_dataset_from_directory(
   batch_size=batch_size
   )
 
+# Transfer working without a batch
+
 # %%
 class_names = np.array(sorted([item.name for item in (cifar_data_path / 'train').glob('*') if item.name != "LICENSE.txt"]))
 print(class_names)
@@ -65,7 +67,7 @@ for f in train_ds.take(1):
   print(f[0].shape)
 
 # %%
-print(tf.data.experimental.cardinality(train_ds).numpy()*32)
+print(tf.data.experimental.cardinality(train_ds).numpy()*batch_size)
 
 # %%
 class_names = [
@@ -89,7 +91,9 @@ _ = plt.imshow(tf.cast(images[0], tf.uint8))
 _ = plt.title(class_names[labels[0]])
 
 # %%
-import tensorflow_models as tfm
+images, labels = next(iter(train_ds.batch(batch_size)))
+
+# %%
 
 buffer_size = 10000
 
@@ -100,11 +104,17 @@ cutmix_param = 1.0
 random_erasing = 0.25
 rand_aug = (9, 0.5)
 
-def resize_and_rescale(image, label):
+def make_onehot(images, labels):
+  labels = tf.one_hot(labels, num_classes)
+  return images, labels
+
+def image_cast(image, label):
   image = tf.cast(image, tf.float32)
-  image = tf.image.resize(image, [IMG_SIZE, IMG_SIZE])
   image = (image / 255.0)
   return image, label
+
+train_ds = train_ds.map(make_onehot).map(image_cast)
+test_ds = test_ds.map(make_onehot).map(image_cast)
 
 def prepare_ds(ds, shuffle=False, augment=False):
   # Resize and rescale all datasets.
@@ -114,7 +124,7 @@ def prepare_ds(ds, shuffle=False, augment=False):
 
   # Use data augmentation only on the training set.
   if augment:
-    ds = cutmix.dataset_cutmixed(ds, cutmix_param)
+    ds = cutmix.dataset_cutmixed(ds.unbatch(), cutmix_param).batch(batch_size)
 
   return ds 
 
@@ -123,54 +133,16 @@ train_ds = prepare_ds(train_ds, shuffle=True, augment=True)
 test_ds = prepare_ds(test_ds)
 
 # %%
-# To continue from - https://www.tensorflow.org/tutorials/images/data_augmentation#apply_the_preprocessing_layers_to_the_datasets
-
-random_batch = train_ds.shuffle(buffer_size=buffer_size).take(1)
-
-
-num_cols = 5
-
-num_rows = len(images) // num_cols + (1 if len(images) % num_cols != 0 else 0)
-
-# Create a figure with subplots
-fig, axes = plt.subplots(num_rows, num_cols, figsize=(12, 12))
-
-# Flatten the axes array for easy iteration
-axes = axes.flatten()
-
-# Plot each image in a subplot
-for img, label, ax in zip(images, labels, axes):
-    ax.imshow(img, cmap='gray')  # Use cmap='gray' for grayscale images
-    ax.set_title(f'Label: {label}')
-    ax.axis('off')
+train_ds.__len__()
 
 # %%
-normalization_layer = tf.keras.layers.Rescaling(1./255)
-
-# %%
-normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-image_batch, labels_batch = next(iter(normalized_ds))
-first_image = image_batch[0]
-# Notice the pixel values are now in `[0,1]`.
-print(np.min(first_image), np.max(first_image))
-
-# %%
-class_names = [
-    "airplane",
-    "automobile",
-    "bird",
-    "cat",
-    "deer",
-    "dog",
-    "frog",
-    "horse",
-    "ship",
-    "truck",
-]
-num_classes=len(class_names)
-
-# %% [markdown]
-# Scale these values to a range of 0 to 1 before feeding them to the neural network model. To do so, divide the values by 255. It's important that the *training set* and the *testing set* be preprocessed in the same way:
+image_batch, label_batch = next(iter(train_ds))
+plt.figure(figsize=(10, 10))
+for i in range(9):
+    ax = plt.subplot(3, 3, i + 1)
+    plt.title(class_names[np.argmax(label_batch[i])])
+    plt.imshow(image_batch[i])
+    plt.axis("off")
 
 # %% [markdown]
 # ## Build the model
@@ -210,6 +182,9 @@ model = tf.keras.Sequential([
 # * [*Optimizer*](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers) —This is how the model is updated based on the data it sees and its loss function.
 # * [*Loss function*](https://www.tensorflow.org/api_docs/python/tf/keras/losses) —This measures how accurate the model is during training. You want to minimize this function to "steer" the model in the right direction.
 # * [*Metrics*](https://www.tensorflow.org/api_docs/python/tf/keras/metrics) —Used to monitor the training and testing steps. The following example uses *accuracy*, the fraction of the images that are correctly classified.
+
+# %%
+len(train_ds)
 
 # %%
 import math
